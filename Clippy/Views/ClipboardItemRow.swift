@@ -10,23 +10,25 @@ struct ClipboardItemRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                // Type icon
+                // Icon: source app icon, or fallback generic icon
                 Group {
-                    switch item.contentType {
-                    case .text:
+                    if isSnippet {
                         ZStack {
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(isSnippet ? .orange.opacity(0.15) : .blue.opacity(0.15))
-                            Image(systemName: isSnippet ? "bookmark.fill" : "doc.text")
+                                .fill(.orange.opacity(0.15))
+                            Image(systemName: "bookmark.fill")
                                 .font(.system(size: 12))
-                                .foregroundStyle(isSnippet ? .orange : .blue)
+                                .foregroundStyle(.orange)
                         }
-
-                    case .image:
+                    } else if let appIcon = item.sourceAppIcon {
+                        Image(nsImage: appIcon)
+                            .resizable()
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    } else {
                         ZStack {
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(.blue.opacity(0.15))
-                            Image(systemName: "photo.on.rectangle")
+                            Image(systemName: item.contentType == .text ? "doc.text" : "photo.on.rectangle")
                                 .font(.system(size: 12))
                                 .foregroundStyle(.blue)
                         }

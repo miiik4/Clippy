@@ -13,6 +13,7 @@ struct ClipboardItem: Identifiable, Codable {
     let imageData: Data?
     let timestamp: Date
     let sourceAppName: String?
+    let sourceAppBundleID: String?
 
     var previewText: String {
         switch contentType {
@@ -43,6 +44,14 @@ struct ClipboardItem: Identifiable, Codable {
         return formatter.localizedString(for: timestamp, relativeTo: Date())
     }
 
+    var sourceAppIcon: NSImage? {
+        guard let bundleID = sourceAppBundleID,
+              let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
+            return nil
+        }
+        return NSWorkspace.shared.icon(forFile: appURL.path)
+    }
+
     static func text(_ string: String, sourceApp: NSRunningApplication? = nil) -> ClipboardItem {
         ClipboardItem(
             id: UUID(),
@@ -50,7 +59,8 @@ struct ClipboardItem: Identifiable, Codable {
             textContent: string,
             imageData: nil,
             timestamp: Date(),
-            sourceAppName: sourceApp?.localizedName
+            sourceAppName: sourceApp?.localizedName,
+            sourceAppBundleID: sourceApp?.bundleIdentifier
         )
     }
 
@@ -61,7 +71,8 @@ struct ClipboardItem: Identifiable, Codable {
             textContent: nil,
             imageData: data,
             timestamp: Date(),
-            sourceAppName: sourceApp?.localizedName
+            sourceAppName: sourceApp?.localizedName,
+            sourceAppBundleID: sourceApp?.bundleIdentifier
         )
     }
 }

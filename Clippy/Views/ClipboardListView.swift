@@ -171,6 +171,9 @@ struct ClipboardListView: View {
             } else {
                 Text("Image")
             }
+            if let appName = item.sourceAppName {
+                Text("\u{00B7} \(appName)")
+            }
             Spacer()
             if state.activeTab == .history {
                 Text("Copied \(item.relativeTimeString)")

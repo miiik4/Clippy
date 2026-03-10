@@ -17,6 +17,21 @@ enum PasteService {
         }
     }
 
+    /// Simulates ⌘⇧⌥V (Paste and Match Style) to paste as plain text.
+    static func pastePlain() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            let source = CGEventSource(stateID: .combinedSessionState)
+
+            let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true)
+            keyDown?.flags = [.maskCommand, .maskShift, .maskAlternate]
+            keyDown?.post(tap: .cghidEventTap)
+
+            let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false)
+            keyUp?.flags = [.maskCommand, .maskShift, .maskAlternate]
+            keyUp?.post(tap: .cghidEventTap)
+        }
+    }
+
     /// Prompts the user for Accessibility permission if not already granted.
     @discardableResult
     static func requestAccessibilityPermission() -> Bool {

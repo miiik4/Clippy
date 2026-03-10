@@ -1,8 +1,10 @@
 import SwiftUI
+import ServiceManagement
 
 struct SettingsView: View {
     @Bindable private var settings = AppSettings.shared
     @State private var newBundleID = ""
+    @State private var launchAtLogin = false
 
     var body: some View {
         TabView {
@@ -23,6 +25,21 @@ struct SettingsView: View {
 
     private var generalTab: some View {
         Form {
+            Section("Startup") {
+                Toggle("Launch Clippy at login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, newValue in
+                        do {
+                            if newValue {
+                                try SMAppService.mainApp.register()
+                            } else {
+                                try SMAppService.mainApp.unregister()
+                            }
+                        } catch {
+                            launchAtLogin = !newValue
+                        }
+                    }
+            }
+
             Section("History") {
                 Picker("Keep clipboard history for", selection: $settings.retentionPeriod) {
                     ForEach(RetentionPeriod.allCases, id: \.self) { period in
@@ -61,7 +78,9 @@ struct SettingsView: View {
                     shortcutRow("Toggle Clippy", shortcut: "\u{2325}\u{2318}C")
                     shortcutRow("Paste item", shortcut: "\u{2318}1 \u{2013} \u{2318}9")
                     shortcutRow("Paste selected", shortcut: "\u{21A9}")
+                    shortcutRow("Paste as plain text", shortcut: "\u{21E7}\u{21A9}")
                     shortcutRow("Save as snippet", shortcut: "\u{2318}S")
+                    shortcutRow("Preview image", shortcut: "\u{2192} / \u{2190}")
                     shortcutRow("Switch tab", shortcut: "Tab")
                     shortcutRow("Delete item", shortcut: "fn \u{232B}")
                     shortcutRow("Dismiss", shortcut: "\u{238B}")
@@ -70,6 +89,9 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear {
+            launchAtLogin = SMAppService.mainApp.status == .enabled
+        }
     }
 
     // MARK: - Ignored Apps Tab

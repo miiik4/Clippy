@@ -160,7 +160,8 @@ final class ClipboardMonitor {
                     textContent: merged,
                     imageData: nil,
                     timestamp: first.timestamp,
-                    sourceAppName: first.sourceAppName
+                    sourceAppName: first.sourceAppName,
+                    sourceAppBundleID: first.sourceAppBundleID
                 )
                 store.save(items)
                 return

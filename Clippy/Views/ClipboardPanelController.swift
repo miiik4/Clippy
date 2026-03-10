@@ -120,7 +120,8 @@ final class ClipboardPanelController {
             return true
 
         case 36: // Return
-            pasteItemAtIndex(state.selectedIndex)
+            let plain = event.modifierFlags.contains(.shift)
+            pasteItemAtIndex(state.selectedIndex, plainText: plain)
             return true
 
         case 117: // Forward Delete (fn+Backspace)
@@ -203,7 +204,7 @@ final class ClipboardPanelController {
 
     // MARK: - Paste
 
-    private func pasteItemAtIndex(_ index: Int) {
+    private func pasteItemAtIndex(_ index: Int, plainText: Bool = false) {
         let items = currentDisplayItems
         guard index >= 0, index < items.count else { return }
         let item = items[index]
@@ -224,7 +225,11 @@ final class ClipboardPanelController {
         }
 
         hide()
-        PasteService.paste()
+        if plainText {
+            PasteService.pastePlain()
+        } else {
+            PasteService.paste()
+        }
     }
 
     var currentDisplayItems: [ClipboardItem] {
