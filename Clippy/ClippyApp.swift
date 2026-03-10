@@ -29,6 +29,7 @@ struct ClippyApp: App {
             Divider()
 
             SettingsLink()
+                .keyboardShortcut(",", modifiers: .command)
 
             Divider()
 
@@ -40,6 +41,12 @@ struct ClippyApp: App {
 
         Settings {
             SettingsView()
+                .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeMainNotification)) { _ in
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+                .onAppear {
+                    NSApp.activate(ignoringOtherApps: true)
+                }
         }
     }
 }
