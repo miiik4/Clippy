@@ -4,13 +4,16 @@ import Observation
 @Observable
 final class ClipboardMonitor {
     var items: [ClipboardItem] = []
+    var snippets: [ClipboardItem] = []
 
     private var timer: Timer?
     private var lastChangeCount: Int = 0
     private let store = ClipboardStore()
+    private let snippetStore = SnippetStore()
     private let maxItems = 200
     private var ignoreNextChange = false
     private var lastPurgeCheck: Date = .distantPast
+    private var lastClipboardChangeTime: Date = .distantPast
 
     private static let sensitiveTypes: [NSPasteboard.PasteboardType] = [
         NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"),
@@ -20,6 +23,7 @@ final class ClipboardMonitor {
 
     init() {
         items = store.load()
+        snippets = snippetStore.load()
         lastChangeCount = NSPasteboard.general.changeCount
     }
 
@@ -67,6 +71,22 @@ final class ClipboardMonitor {
         ignoreNextChange = true
     }
 
+    // MARK: - Snippets
+
+    func saveAsSnippet(_ item: ClipboardItem) {
+        // Avoid duplicate snippets
+        if snippets.contains(where: { $0.textContent == item.textContent && $0.imageData == item.imageData }) {
+            return
+        }
+        snippets.insert(item, at: 0)
+        snippetStore.save(snippets)
+    }
+
+    func deleteSnippet(_ item: ClipboardItem) {
+        snippets.removeAll { $0.id == item.id }
+        snippetStore.save(snippets)
+    }
+
     // MARK: - Private
 
     private func purgeExpiredItems() {
@@ -104,6 +124,16 @@ final class ClipboardMonitor {
 
         let sourceApp = NSWorkspace.shared.frontmostApplication
 
+        // Skip ignored apps
+        if let bundleID = sourceApp?.bundleIdentifier,
+           AppSettings.shared.ignoredAppBundleIDs.contains(bundleID) {
+            return
+        }
+
+        let now = Date()
+        let timeSinceLastChange = now.timeIntervalSince(lastClipboardChangeTime)
+        lastClipboardChangeTime = now
+
         // Check for image first
         if let imageData = pasteboard.data(forType: .tiff) ?? pasteboard.data(forType: .png) {
             if let bitmapRep = NSBitmapImageRep(data: imageData),
@@ -116,6 +146,26 @@ final class ClipboardMonitor {
             if let lastText = items.first?.textContent, lastText == string {
                 return
             }
+
+            // Merge mode: append to most recent item if within time window
+            let settings = AppSettings.shared
+            if settings.isMergeEnabled,
+               timeSinceLastChange < settings.mergeWindowSeconds,
+               let first = items.first, first.contentType == .text,
+               let existingText = first.textContent {
+                let merged = existingText + "\n" + string
+                items[0] = ClipboardItem(
+                    id: first.id,
+                    contentType: .text,
+                    textContent: merged,
+                    imageData: nil,
+                    timestamp: first.timestamp,
+                    sourceAppName: first.sourceAppName
+                )
+                store.save(items)
+                return
+            }
+
             let item = ClipboardItem.text(string, sourceApp: sourceApp)
             insertItem(item)
         }

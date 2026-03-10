@@ -4,6 +4,7 @@ struct ClipboardItemRow: View {
     let item: ClipboardItem
     let index: Int
     let isSelected: Bool
+    var isSnippet: Bool = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -13,10 +14,10 @@ struct ClipboardItemRow: View {
                 case .text:
                     ZStack {
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(.blue.opacity(0.15))
-                        Image(systemName: "doc.text")
+                            .fill(isSnippet ? .orange.opacity(0.15) : .blue.opacity(0.15))
+                        Image(systemName: isSnippet ? "bookmark.fill" : "doc.text")
                             .font(.system(size: 12))
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(isSnippet ? .orange : .blue)
                     }
 
                 case .image:

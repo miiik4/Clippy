@@ -2,11 +2,18 @@ import AppKit
 import SwiftUI
 import Observation
 
+enum PanelTab: Int {
+    case history
+    case snippets
+}
+
 @Observable
 final class ClipboardPanelState {
     var searchText = ""
     var selectedIndex = 0
     var showCount = 0
+    var activeTab: PanelTab = .history
+    var snippetSavedFlash = false
 }
 
 final class ClipboardPanelController {
@@ -34,6 +41,8 @@ final class ClipboardPanelController {
         // Reset state
         state.searchText = ""
         state.selectedIndex = 0
+        state.activeTab = .history
+        state.snippetSavedFlash = false
         state.showCount += 1
 
         // Center on screen
@@ -89,7 +98,7 @@ final class ClipboardPanelController {
             return true
 
         case 125: // Down arrow
-            let items = currentFilteredItems
+            let items = currentDisplayItems
             if state.selectedIndex < items.count - 1 {
                 state.selectedIndex += 1
             }
@@ -109,11 +118,26 @@ final class ClipboardPanelController {
 
         // ⌘1 through ⌘9
         if event.modifierFlags.contains(.command) {
-            if let chars = event.charactersIgnoringModifiers,
-               let digit = Int(chars), digit >= 1, digit <= 9 {
-                pasteItemAtIndex(digit - 1)
-                return true
+            if let chars = event.charactersIgnoringModifiers {
+                if let digit = Int(chars), digit >= 1, digit <= 9 {
+                    pasteItemAtIndex(digit - 1)
+                    return true
+                }
+
+                // ⌘S — save/unsave snippet
+                if chars == "s" {
+                    toggleSnippet()
+                    return true
+                }
             }
+        }
+
+        // Tab key — switch between History and Snippets
+        if Int(event.keyCode) == 48 { // Tab
+            state.activeTab = state.activeTab == .history ? .snippets : .history
+            state.selectedIndex = 0
+            state.searchText = ""
+            return true
         }
 
         return false
@@ -122,22 +146,50 @@ final class ClipboardPanelController {
     // MARK: - Delete
 
     private func deleteSelectedItem() {
-        let items = currentFilteredItems
+        let items = currentDisplayItems
         guard state.selectedIndex >= 0, state.selectedIndex < items.count else { return }
         let item = items[state.selectedIndex]
-        clipboardMonitor.deleteItem(item)
+
+        if state.activeTab == .snippets {
+            clipboardMonitor.deleteSnippet(item)
+        } else {
+            clipboardMonitor.deleteItem(item)
+        }
 
         // Clamp selection to new list bounds
-        let updatedItems = currentFilteredItems
+        let updatedItems = currentDisplayItems
         if state.selectedIndex >= updatedItems.count {
             state.selectedIndex = max(0, updatedItems.count - 1)
+        }
+    }
+
+    // MARK: - Save as Snippet
+
+    private func toggleSnippet() {
+        let items = currentDisplayItems
+        guard state.selectedIndex >= 0, state.selectedIndex < items.count else { return }
+        let item = items[state.selectedIndex]
+
+        if state.activeTab == .snippets {
+            clipboardMonitor.deleteSnippet(item)
+            let updatedItems = currentDisplayItems
+            if state.selectedIndex >= updatedItems.count {
+                state.selectedIndex = max(0, updatedItems.count - 1)
+            }
+            state.snippetSavedFlash = false
+        } else {
+            clipboardMonitor.saveAsSnippet(item)
+            state.snippetSavedFlash = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.state.snippetSavedFlash = false
+            }
         }
     }
 
     // MARK: - Paste
 
     private func pasteItemAtIndex(_ index: Int) {
-        let items = currentFilteredItems
+        let items = currentDisplayItems
         guard index >= 0, index < items.count else { return }
         let item = items[index]
 
@@ -160,8 +212,16 @@ final class ClipboardPanelController {
         PasteService.paste()
     }
 
-    private var currentFilteredItems: [ClipboardItem] {
-        clipboardMonitor.filteredItems(searchText: state.searchText)
+    var currentDisplayItems: [ClipboardItem] {
+        switch state.activeTab {
+        case .history:
+            return clipboardMonitor.filteredItems(searchText: state.searchText)
+        case .snippets:
+            guard !state.searchText.isEmpty else { return clipboardMonitor.snippets }
+            return clipboardMonitor.snippets.filter { item in
+                item.textContent?.localizedCaseInsensitiveContains(state.searchText) ?? false
+            }
+        }
     }
 
     // MARK: - Panel Creation
@@ -170,7 +230,7 @@ final class ClipboardPanelController {
         let panelRect = NSRect(x: 0, y: 0, width: 640, height: 460)
         let panel = FloatingPanel(contentRect: panelRect)
 
-        let listView = ClipboardListView(state: state, monitor: clipboardMonitor)
+        let listView = ClipboardListView(state: state, monitor: clipboardMonitor, panelController: self)
 
         let hostingView = NSHostingView(rootView: listView)
 

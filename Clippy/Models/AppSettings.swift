@@ -31,8 +31,42 @@ final class AppSettings {
         }
     }
 
+    var ignoredAppBundleIDs: Set<String> {
+        didSet {
+            UserDefaults.standard.set(Array(ignoredAppBundleIDs), forKey: "ignoredAppBundleIDs")
+        }
+    }
+
+    var isMergeEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(isMergeEnabled, forKey: "isMergeEnabled")
+        }
+    }
+
+    var mergeWindowSeconds: Double {
+        didSet {
+            UserDefaults.standard.set(mergeWindowSeconds, forKey: "mergeWindowSeconds")
+        }
+    }
+
+    static let commonIgnoredApps: [(name: String, bundleID: String)] = [
+        ("1Password", "com.1password.1password"),
+        ("1Password 7", "com.agilebits.onepassword7"),
+        ("Bitwarden", "com.bitwarden.desktop"),
+        ("KeePassXC", "org.keepassxc.keepassxc"),
+        ("LastPass", "com.lastpass.LastPass"),
+        ("Keychain Access", "com.apple.keychainaccess"),
+        ("Dashlane", "com.dashlane.Dashlane"),
+    ]
+
     private init() {
         let stored = UserDefaults.standard.integer(forKey: "retentionPeriod")
         retentionPeriod = RetentionPeriod(rawValue: stored) ?? .threeMonths
+
+        let storedIDs = UserDefaults.standard.stringArray(forKey: "ignoredAppBundleIDs") ?? []
+        ignoredAppBundleIDs = Set(storedIDs)
+
+        isMergeEnabled = UserDefaults.standard.object(forKey: "isMergeEnabled") as? Bool ?? true
+        mergeWindowSeconds = UserDefaults.standard.object(forKey: "mergeWindowSeconds") as? Double ?? 1.0
     }
 }
