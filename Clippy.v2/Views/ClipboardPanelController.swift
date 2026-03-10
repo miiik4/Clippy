@@ -99,11 +99,15 @@ final class ClipboardPanelController {
             pasteItemAtIndex(state.selectedIndex)
             return true
 
+        case 117: // Forward Delete (fn+Backspace)
+            deleteSelectedItem()
+            return true
+
         default:
             break
         }
 
-        // Cmd+1 through Cmd+9
+        // ⌘1 through ⌘9
         if event.modifierFlags.contains(.command) {
             if let chars = event.charactersIgnoringModifiers,
                let digit = Int(chars), digit >= 1, digit <= 9 {
@@ -113,6 +117,21 @@ final class ClipboardPanelController {
         }
 
         return false
+    }
+
+    // MARK: - Delete
+
+    private func deleteSelectedItem() {
+        let items = currentFilteredItems
+        guard state.selectedIndex >= 0, state.selectedIndex < items.count else { return }
+        let item = items[state.selectedIndex]
+        clipboardMonitor.deleteItem(item)
+
+        // Clamp selection to new list bounds
+        let updatedItems = currentFilteredItems
+        if state.selectedIndex >= updatedItems.count {
+            state.selectedIndex = max(0, updatedItems.count - 1)
+        }
     }
 
     // MARK: - Paste

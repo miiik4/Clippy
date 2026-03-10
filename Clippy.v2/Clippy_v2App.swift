@@ -6,7 +6,7 @@ struct Clippy_v2App: App {
 
     var body: some Scene {
         Settings {
-            EmptyView()
+            SettingsView()
         }
     }
 }
