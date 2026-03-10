@@ -31,6 +31,10 @@ final class ClipboardPanelController {
         self.clipboardMonitor = clipboardMonitor
     }
 
+    deinit {
+        hide()
+    }
+
     func toggle() {
         if isVisible { hide() } else { show() }
     }

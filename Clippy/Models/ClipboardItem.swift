@@ -25,8 +25,7 @@ struct ClipboardItem: Identifiable, Codable {
     }
 
     var image: NSImage? {
-        guard let data = imageData else { return nil }
-        return NSImage(data: data)
+        ImageCache.shared.image(for: self)
     }
 
     var wordCount: Int {
@@ -38,18 +37,19 @@ struct ClipboardItem: Identifiable, Codable {
         return textContent?.count ?? 0
     }
 
-    var relativeTimeString: String {
+    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
-        return formatter.localizedString(for: timestamp, relativeTo: Date())
+        return formatter
+    }()
+
+    var relativeTimeString: String {
+        Self.relativeDateFormatter.localizedString(for: timestamp, relativeTo: Date())
     }
 
     var sourceAppIcon: NSImage? {
-        guard let bundleID = sourceAppBundleID,
-              let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
-            return nil
-        }
-        return NSWorkspace.shared.icon(forFile: appURL.path)
+        guard let bundleID = sourceAppBundleID else { return nil }
+        return ImageCache.shared.appIcon(for: bundleID)
     }
 
     static func text(_ string: String, sourceApp: NSRunningApplication? = nil) -> ClipboardItem {
