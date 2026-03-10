@@ -12,7 +12,7 @@ struct ClipboardListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Search bar
+            // Search bar + tabs
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 14))
@@ -22,17 +22,14 @@ struct ClipboardListView: View {
                     .textFieldStyle(.plain)
                     .font(.system(size: 16))
                     .focused($isSearchFocused)
+
+                HStack(spacing: 2) {
+                    tabButton("History", icon: "clock", tab: .history)
+                    tabButton("Snippets", icon: "bookmark", tab: .snippets)
+                }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-
-            // Tab bar
-            HStack(spacing: 0) {
-                tabButton("History", icon: "clock", tab: .history)
-                tabButton("Snippets", icon: "bookmark", tab: .snippets)
-            }
-            .padding(.horizontal, 8)
-            .padding(.bottom, 4)
 
             Divider()
                 .padding(.horizontal, 8)

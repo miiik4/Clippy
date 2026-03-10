@@ -21,19 +21,12 @@ struct ClipboardItemRow: View {
                     }
 
                 case .image:
-                    if let nsImage = item.image {
-                        Image(nsImage: nsImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                    } else {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(.green.opacity(0.15))
-                            Image(systemName: "photo")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.green)
-                        }
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(.green.opacity(0.15))
+                        Image(systemName: "photo.on.rectangle")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.green)
                     }
                 }
             }
