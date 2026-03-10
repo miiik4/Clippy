@@ -14,6 +14,7 @@ final class ClipboardPanelState {
     var showCount = 0
     var activeTab: PanelTab = .history
     var snippetSavedFlash = false
+    var expandedImageID: UUID?
 }
 
 final class ClipboardPanelController {
@@ -43,6 +44,7 @@ final class ClipboardPanelController {
         state.selectedIndex = 0
         state.activeTab = .history
         state.snippetSavedFlash = false
+        state.expandedImageID = nil
         state.showCount += 1
 
         // Center on screen
@@ -94,6 +96,7 @@ final class ClipboardPanelController {
         case 126: // Up arrow
             if state.selectedIndex > 0 {
                 state.selectedIndex -= 1
+                state.expandedImageID = nil
             }
             return true
 
@@ -101,7 +104,19 @@ final class ClipboardPanelController {
             let items = currentDisplayItems
             if state.selectedIndex < items.count - 1 {
                 state.selectedIndex += 1
+                state.expandedImageID = nil
             }
+            return true
+
+        case 124: // Right arrow — expand image preview
+            if let item = currentDisplayItems[safe: state.selectedIndex],
+               item.contentType == .image {
+                state.expandedImageID = item.id
+            }
+            return true
+
+        case 123: // Left arrow — collapse image preview
+            state.expandedImageID = nil
             return true
 
         case 36: // Return

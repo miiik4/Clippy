@@ -146,7 +146,8 @@ struct ClipboardListView: View {
                             item: item,
                             index: index,
                             isSelected: index == state.selectedIndex,
-                            isSnippet: state.activeTab == .snippets
+                            isSnippet: state.activeTab == .snippets,
+                            isExpanded: item.id == state.expandedImageID
                         )
                         .id(item.id)
                     }
