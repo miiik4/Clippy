@@ -4,6 +4,30 @@ A lightweight clipboard history manager for macOS. Lives in your menu bar, store
 
 ![Clipboard History Panel](assets/clippy.png)
 
+## Installation
+
+### Download
+
+1. Go to the [latest release](https://github.com/miiik4/Clippy/releases/latest)
+2. Download the `.zip` file
+3. Extract it to get the `.dmg` file
+4. Open the `.dmg` and drag **Clippy** to your Applications folder
+5. On first launch, macOS may warn about an unidentified developer — right-click the app and choose **Open** to bypass Gatekeeper
+
+### Build from source
+
+If you want to verify the code or make your own changes:
+
+1. Clone the repo:
+   ```
+   git clone https://github.com/miiik4/Clippy.git
+   ```
+2. Open `Clippy.xcodeproj` in Xcode
+3. Select the **Clippy** scheme and your Mac as the run destination
+4. Build and run with `⌘R` (or `⌘B` to build only)
+
+No external dependencies — just Xcode 15+ and macOS 14.0 or later.
+
 ## Features
 
 - **Clipboard history** — automatically captures text and images (up to 200 items)
@@ -42,7 +66,4 @@ A lightweight clipboard history manager for macOS. Lives in your menu bar, store
 ## Requirements
 
 - macOS 14.0 or later
-
-## Building
-
-Open `Clippy.xcodeproj` in Xcode and build with `⌘B`. No external dependencies.
+- Xcode 15+ (if building from source)
