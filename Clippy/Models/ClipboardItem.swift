@@ -15,9 +15,17 @@ struct ClipboardItem: Identifiable, Codable {
     let sourceAppName: String?
     let sourceAppBundleID: String?
 
+    var isSensitive: Bool {
+        guard let bundleID = sourceAppBundleID else { return false }
+        return AppSettings.sensitiveAppBundleIDs.contains(bundleID)
+    }
+
     var previewText: String {
         switch contentType {
         case .text:
+            if isSensitive {
+                return "\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}"
+            }
             return textContent ?? ""
         case .image:
             return "Image"

@@ -1,10 +1,60 @@
 import SwiftUI
 import ServiceManagement
 
+struct InstalledApp: Identifiable, Comparable {
+    let id: String // bundleID
+    let name: String
+
+    static func < (lhs: InstalledApp, rhs: InstalledApp) -> Bool {
+        lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+    }
+
+    static func loadAll() -> [InstalledApp] {
+        var result: [InstalledApp] = []
+        var seen = Set<String>()
+        let urls = LSCopyApplicationURLsForBundleIdentifier("" as CFString, nil)?
+            .takeRetainedValue() as? [URL] ?? []
+
+        // LSCopy with empty string won't work; scan Applications folders instead
+        let fileManager = FileManager.default
+        let searchPaths = [
+            "/Applications",
+            "/System/Applications",
+            "/System/Applications/Utilities",
+            NSHomeDirectory() + "/Applications",
+        ]
+
+        for searchPath in searchPaths {
+            guard let contents = try? fileManager.contentsOfDirectory(
+                at: URL(fileURLWithPath: searchPath),
+                includingPropertiesForKeys: nil
+            ) else { continue }
+
+            for url in contents where url.pathExtension == "app" {
+                guard let bundle = Bundle(url: url),
+                      let bundleID = bundle.bundleIdentifier,
+                      !seen.contains(bundleID) else { continue }
+                seen.insert(bundleID)
+                let name = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+                    ?? bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
+                    ?? url.deletingPathExtension().lastPathComponent
+                result.append(InstalledApp(id: bundleID, name: name))
+            }
+        }
+
+        return result.sorted()
+    }
+}
+
 struct SettingsView: View {
     @Bindable private var settings = AppSettings.shared
-    @State private var newBundleID = ""
     @State private var launchAtLogin = false
+    @State private var installedApps: [InstalledApp] = []
+    @State private var selectedAppID = ""
+
+    private var availableApps: [InstalledApp] {
+        installedApps.filter { !settings.ignoredAppBundleIDs.contains($0.id) }
+    }
 
     var body: some View {
         TabView {
@@ -15,10 +65,13 @@ struct SettingsView: View {
 
             ignoredAppsTab
                 .tabItem {
-                    Label("Ignored Apps", systemImage: "eye.slash")
+                    Label("Ignored Apps", systemImage: "shield.lefthalf.filled")
                 }
         }
         .frame(width: 440, height: 420)
+        .onAppear {
+            installedApps = InstalledApp.loadAll()
+        }
     }
 
     // MARK: - General Tab
@@ -154,19 +207,18 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Custom App") {
-                HStack {
-                    TextField("Bundle ID (e.g. com.example.app)", text: $newBundleID)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 12))
-                    Button("Add") {
-                        let trimmed = newBundleID.trimmingCharacters(in: .whitespaces)
-                        if !trimmed.isEmpty {
-                            settings.ignoredAppBundleIDs.insert(trimmed)
-                            newBundleID = ""
-                        }
+            Section("Add App") {
+                Picker("App", selection: $selectedAppID) {
+                    Text("Select application").tag("")
+                    ForEach(availableApps) { app in
+                        Text(app.name).tag(app.id)
                     }
-                    .disabled(newBundleID.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                .onChange(of: selectedAppID) { _, newValue in
+                    if !newValue.isEmpty {
+                        settings.ignoredAppBundleIDs.insert(newValue)
+                        selectedAppID = ""
+                    }
                 }
             }
         }
@@ -188,7 +240,9 @@ struct SettingsView: View {
         if let match = AppSettings.commonIgnoredApps.first(where: { $0.bundleID == bundleID }) {
             return match.name
         }
-        // Extract app name from bundle ID (last component, capitalized)
+        if let match = installedApps.first(where: { $0.id == bundleID }) {
+            return match.name
+        }
         return bundleID.split(separator: ".").last.map(String.init) ?? bundleID
     }
 }

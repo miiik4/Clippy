@@ -50,6 +50,7 @@ final class AppSettings {
     }
 
     static let commonIgnoredApps: [(name: String, bundleID: String)] = [
+        ("Passwords", "com.apple.Passwords"),
         ("1Password", "com.1password.1password"),
         ("1Password 7", "com.agilebits.onepassword7"),
         ("Bitwarden", "com.bitwarden.desktop"),
@@ -57,6 +58,17 @@ final class AppSettings {
         ("LastPass", "com.lastpass.LastPass"),
         ("Keychain Access", "com.apple.keychainaccess"),
         ("Dashlane", "com.dashlane.Dashlane"),
+    ]
+
+    static let sensitiveAppBundleIDs: Set<String> = [
+        "com.apple.Passwords",
+        "com.1password.1password",
+        "com.agilebits.onepassword7",
+        "com.bitwarden.desktop",
+        "org.keepassxc.keepassxc",
+        "com.lastpass.LastPass",
+        "com.apple.keychainaccess",
+        "com.dashlane.Dashlane",
     ]
 
     private init() {

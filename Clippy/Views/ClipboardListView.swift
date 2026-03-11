@@ -166,7 +166,9 @@ struct ClipboardListView: View {
 
     private func footerView(for item: ClipboardItem) -> some View {
         HStack {
-            if item.contentType == .text {
+            if item.isSensitive {
+                Text("Sensitive content")
+            } else if item.contentType == .text {
                 Text("\(item.wordCount) words \u{00B7} \(item.charCount) chars")
             } else {
                 Text("Image")
