@@ -31,7 +31,7 @@ No external dependencies — just Xcode 15+ and macOS 14.0 or later.
 ## Features
 
 - **Clipboard history** — automatically captures text and images (up to 200 items)
-- **Global hotkey** — press `⌥⌘C` to open the floating panel from anywhere
+- **Global hotkey** — press `⌥⌘V` to open the floating panel from anywhere (customizable in settings)
 - **Quick paste** — `⌘1` through `⌘9` to paste recent items, or `Return` to paste selected
 - **Paste as plain text** — `Shift+Return` to paste without formatting
 - **Search** — filter your history instantly by typing
@@ -53,7 +53,7 @@ No external dependencies — just Xcode 15+ and macOS 14.0 or later.
 
 | Action | Shortcut |
 |--------|----------|
-| Toggle Clippy | `⌥⌘C` |
+| Toggle Clippy | `⌥⌘V` |
 | Paste item | `⌘1` – `⌘9` |
 | Paste selected | `Return` |
 | Paste as plain text | `Shift+Return` |

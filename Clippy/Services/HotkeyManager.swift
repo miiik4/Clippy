@@ -29,7 +29,9 @@ final class HotkeyManager {
     private var context: HotkeyContext?
     var onHotkey: (() -> Void)?
 
-    func register() {
+    func register(keyCode: Int? = nil, modifiers: Int? = nil) {
+        unregister()
+
         let ctx = HotkeyContext { [weak self] in
             self?.onHotkey?()
         }
@@ -51,12 +53,16 @@ final class HotkeyManager {
             &eventHandlerRef
         )
 
-        // ⌥⌘C  (Option + Command + C)
-        let hotKeyID = EventHotKeyID(signature: 0x434C5059, id: 1) // "CLPY"
+        let settings = AppSettings.shared
+        let kCode = keyCode ?? settings.hotkeyCode
+        let mods = modifiers ?? settings.hotkeyModifiers
+
+        // Hotkey signature: "CLPY"
+        let hotKeyID = EventHotKeyID(signature: 0x434C5059, id: 1)
 
         RegisterEventHotKey(
-            UInt32(kVK_ANSI_C),
-            UInt32(optionKey | cmdKey),
+            UInt32(kCode),
+            UInt32(mods),
             hotKeyID,
             GetApplicationEventTarget(),
             0,

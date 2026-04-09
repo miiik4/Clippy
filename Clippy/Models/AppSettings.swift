@@ -1,3 +1,4 @@
+import Carbon.HIToolbox
 import Foundation
 import Observation
 
@@ -49,6 +50,18 @@ final class AppSettings {
         }
     }
 
+    var hotkeyCode: Int {
+        didSet {
+            UserDefaults.standard.set(hotkeyCode, forKey: "hotkeyCode")
+        }
+    }
+
+    var hotkeyModifiers: Int {
+        didSet {
+            UserDefaults.standard.set(hotkeyModifiers, forKey: "hotkeyModifiers")
+        }
+    }
+
     static let commonIgnoredApps: [(name: String, bundleID: String)] = [
         ("Passwords", "com.apple.Passwords"),
         ("1Password", "com.1password.1password"),
@@ -80,5 +93,11 @@ final class AppSettings {
 
         isMergeEnabled = UserDefaults.standard.object(forKey: "isMergeEnabled") as? Bool ?? true
         mergeWindowSeconds = UserDefaults.standard.object(forKey: "mergeWindowSeconds") as? Double ?? 1.0
+
+        let storedKeyCode = UserDefaults.standard.object(forKey: "hotkeyCode") as? Int
+        hotkeyCode = storedKeyCode ?? kVK_ANSI_V
+
+        let storedModifiers = UserDefaults.standard.object(forKey: "hotkeyModifiers") as? Int
+        hotkeyModifiers = storedModifiers ?? (optionKey | cmdKey)
     }
 }
