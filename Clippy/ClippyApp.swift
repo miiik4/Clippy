@@ -62,6 +62,7 @@ struct MenuBarContent: View {
     let appDelegate: AppDelegate
     @Environment(\.openSettings) private var openSettings
     @Bindable private var settings = AppSettings.shared
+    @Bindable private var updateChecker = UpdateChecker.shared
 
     private var shortcutKey: KeyEquivalent {
         if let char = characterFrom(keyCode: settings.hotkeyCode) {
@@ -80,6 +81,14 @@ struct MenuBarContent: View {
     }
 
     var body: some View {
+        if let update = updateChecker.availableUpdate {
+            Button("New version \(update.version) is available\u{2026}") {
+                updateChecker.openReleasePage()
+            }
+
+            Divider()
+        }
+
         Button("Show Clipboard History") {
             appDelegate.showPanel()
         }

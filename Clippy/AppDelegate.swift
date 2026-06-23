@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let hotkeyManager = HotkeyManager()
     private var panelController: ClipboardPanelController?
     private var cancellables = Set<AnyCancellable>()
+    private var updateTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         panelController = ClipboardPanelController(clipboardMonitor: clipboardMonitor)
@@ -27,11 +28,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Prompt for Accessibility permission (needed for paste simulation)
         PasteService.requestAccessibilityPermission()
+
+        // Check for app updates on launch, then every 6 hours.
+        UpdateChecker.shared.checkForUpdates()
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 6 * 60 * 60, repeats: true) { _ in
+            Task { @MainActor in
+                UpdateChecker.shared.checkForUpdates()
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         clipboardMonitor.stop()
         hotkeyManager.unregister()
+        updateTimer?.invalidate()
     }
 
     // MARK: - Actions (called from MenuBarExtra)
