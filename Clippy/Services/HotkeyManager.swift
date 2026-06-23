@@ -29,7 +29,10 @@ final class HotkeyManager {
     private var context: HotkeyContext?
     var onHotkey: (() -> Void)?
 
-    func register(keyCode: Int? = nil, modifiers: Int? = nil) {
+    /// Registers the global hotkey. Returns `true` on success; `false` if the
+    /// handler or hotkey could not be registered (e.g. the combo is taken).
+    @discardableResult
+    func register(keyCode: Int? = nil, modifiers: Int? = nil) -> Bool {
         unregister()
 
         let ctx = HotkeyContext { [weak self] in
@@ -44,7 +47,7 @@ final class HotkeyManager {
 
         let selfPtr = Unmanaged.passUnretained(ctx).toOpaque()
 
-        InstallEventHandler(
+        let handlerStatus = InstallEventHandler(
             GetApplicationEventTarget(),
             hotkeyEventHandler,
             1,
@@ -52,6 +55,7 @@ final class HotkeyManager {
             selfPtr,
             &eventHandlerRef
         )
+        guard handlerStatus == noErr else { return false }
 
         let settings = AppSettings.shared
         let kCode = keyCode ?? settings.hotkeyCode
@@ -60,7 +64,7 @@ final class HotkeyManager {
         // Hotkey signature: "CLPY"
         let hotKeyID = EventHotKeyID(signature: 0x434C5059, id: 1)
 
-        RegisterEventHotKey(
+        let status = RegisterEventHotKey(
             UInt32(kCode),
             UInt32(mods),
             hotKeyID,
@@ -68,6 +72,7 @@ final class HotkeyManager {
             0,
             &hotKeyRef
         )
+        return status == noErr && hotKeyRef != nil
     }
 
     func unregister() {

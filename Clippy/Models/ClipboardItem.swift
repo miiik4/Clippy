@@ -10,10 +10,81 @@ struct ClipboardItem: Identifiable, Codable {
     let id: UUID
     let contentType: ClipboardContentType
     let textContent: String?
-    let imageData: Data?
+    let imageFileName: String?
     let timestamp: Date
     let sourceAppName: String?
     let sourceAppBundleID: String?
+
+    init(
+        id: UUID,
+        contentType: ClipboardContentType,
+        textContent: String?,
+        imageFileName: String?,
+        timestamp: Date,
+        sourceAppName: String?,
+        sourceAppBundleID: String?
+    ) {
+        self.id = id
+        self.contentType = contentType
+        self.textContent = textContent
+        self.imageFileName = imageFileName
+        self.timestamp = timestamp
+        self.sourceAppName = sourceAppName
+        self.sourceAppBundleID = sourceAppBundleID
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, contentType, textContent, textEncrypted, imageFileName, imageData, timestamp, sourceAppName, sourceAppBundleID
+    }
+
+    /// Custom decoder that migrates legacy entries which stored image bytes
+    /// inline under `imageData` into standalone files via `ImageStore`.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        contentType = try c.decode(ClipboardContentType.self, forKey: .contentType)
+        timestamp = try c.decode(Date.self, forKey: .timestamp)
+
+        let storedText = try c.decodeIfPresent(String.self, forKey: .textContent)
+        let isEncrypted = try c.decodeIfPresent(Bool.self, forKey: .textEncrypted) ?? false
+        if isEncrypted, let storedText {
+            // Decrypt back to plaintext for in-memory use; nil if the key is gone.
+            textContent = HistoryCrypto.shared.decrypt(storedText)
+        } else {
+            textContent = storedText
+        }
+        sourceAppName = try c.decodeIfPresent(String.self, forKey: .sourceAppName)
+        sourceAppBundleID = try c.decodeIfPresent(String.self, forKey: .sourceAppBundleID)
+
+        if let name = try c.decodeIfPresent(String.self, forKey: .imageFileName) {
+            imageFileName = name
+        } else if let legacy = try c.decodeIfPresent(Data.self, forKey: .imageData) {
+            imageFileName = ImageStore.shared.write(legacy)
+        } else {
+            imageFileName = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(contentType, forKey: .contentType)
+
+        // Encrypt text from sensitive apps so it is never written in plaintext.
+        if let text = textContent {
+            if isSensitive, let cipher = HistoryCrypto.shared.encrypt(text) {
+                try c.encode(cipher, forKey: .textContent)
+                try c.encode(true, forKey: .textEncrypted)
+            } else {
+                try c.encode(text, forKey: .textContent)
+            }
+        }
+
+        try c.encodeIfPresent(imageFileName, forKey: .imageFileName)
+        try c.encode(timestamp, forKey: .timestamp)
+        try c.encodeIfPresent(sourceAppName, forKey: .sourceAppName)
+        try c.encodeIfPresent(sourceAppBundleID, forKey: .sourceAppBundleID)
+    }
 
     var isSensitive: Bool {
         guard let bundleID = sourceAppBundleID else { return false }
@@ -65,22 +136,22 @@ struct ClipboardItem: Identifiable, Codable {
             id: UUID(),
             contentType: .text,
             textContent: string,
-            imageData: nil,
+            imageFileName: nil,
             timestamp: Date(),
             sourceAppName: sourceApp?.localizedName,
             sourceAppBundleID: sourceApp?.bundleIdentifier
         )
     }
 
-    static func image(_ data: Data, sourceApp: NSRunningApplication? = nil) -> ClipboardItem {
+    static func image(fileName: String, sourceAppName: String?, sourceAppBundleID: String?) -> ClipboardItem {
         ClipboardItem(
             id: UUID(),
             contentType: .image,
             textContent: nil,
-            imageData: data,
+            imageFileName: fileName,
             timestamp: Date(),
-            sourceAppName: sourceApp?.localizedName,
-            sourceAppBundleID: sourceApp?.bundleIdentifier
+            sourceAppName: sourceAppName,
+            sourceAppBundleID: sourceAppBundleID
         )
     }
 }

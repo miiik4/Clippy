@@ -228,7 +228,9 @@ final class ClipboardPanelController {
                 pasteboard.setString(text, forType: .string)
             }
         case .image:
-            if let data = item.imageData, let image = NSImage(data: data) {
+            if let fileName = item.imageFileName,
+               let data = ImageStore.shared.data(for: fileName),
+               let image = NSImage(data: data) {
                 pasteboard.writeObjects([image])
             }
         }

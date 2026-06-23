@@ -14,13 +14,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeyManager.onHotkey = { [weak self] in
             self?.panelController?.toggle()
         }
-        hotkeyManager.register()
+        registerHotkey()
 
-        // Re-register hotkey when settings change
-        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+        // Re-register only when the hotkey itself changes
+        NotificationCenter.default.publisher(for: .clippyHotkeyChanged)
             .debounce(for: .milliseconds(100), scheduler: RunLoop.main)
             .sink { [weak self] _ in
-                self?.hotkeyManager.register()
+                self?.registerHotkey()
             }
             .store(in: &cancellables)
 
@@ -42,6 +42,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         clipboardMonitor.stop()
         hotkeyManager.unregister()
         updateTimer?.invalidate()
+    }
+
+    private func registerHotkey() {
+        let success = hotkeyManager.register()
+        AppSettings.shared.hotkeyRegistrationFailed = !success
     }
 
     // MARK: - Actions (called from MenuBarExtra)

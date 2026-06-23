@@ -22,9 +22,18 @@ enum RetentionPeriod: Int, CaseIterable, Codable {
     }
 }
 
+extension Notification.Name {
+    /// Posted when the global hotkey key code or modifiers change.
+    static let clippyHotkeyChanged = Notification.Name("clippyHotkeyChanged")
+}
+
 @Observable
 final class AppSettings {
     static let shared = AppSettings()
+
+    /// True when the configured global hotkey could not be registered (e.g. it
+    /// is already claimed by another app). Transient — not persisted.
+    var hotkeyRegistrationFailed = false
 
     var retentionPeriod: RetentionPeriod {
         didSet {
@@ -53,12 +62,14 @@ final class AppSettings {
     var hotkeyCode: Int {
         didSet {
             UserDefaults.standard.set(hotkeyCode, forKey: "hotkeyCode")
+            NotificationCenter.default.post(name: .clippyHotkeyChanged, object: nil)
         }
     }
 
     var hotkeyModifiers: Int {
         didSet {
             UserDefaults.standard.set(hotkeyModifiers, forKey: "hotkeyModifiers")
+            NotificationCenter.default.post(name: .clippyHotkeyChanged, object: nil)
         }
     }
 

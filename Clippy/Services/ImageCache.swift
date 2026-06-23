@@ -15,7 +15,9 @@ final class ImageCache {
         if let cached = imageCache.object(forKey: item.id as NSUUID) {
             return cached
         }
-        guard let data = item.imageData, let image = NSImage(data: data) else {
+        guard let fileName = item.imageFileName,
+              let data = ImageStore.shared.data(for: fileName),
+              let image = NSImage(data: data) else {
             return nil
         }
         imageCache.setObject(image, forKey: item.id as NSUUID)

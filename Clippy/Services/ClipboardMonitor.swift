@@ -8,8 +8,9 @@ final class ClipboardMonitor {
 
     private var timer: Timer?
     private var lastChangeCount: Int = 0
-    private let store = ClipboardStore()
-    private let snippetStore = SnippetStore()
+    private let store = JSONFileStore<ClipboardItem>(fileName: "clipboard_history.json", label: "clipboard history")
+    private let snippetStore = JSONFileStore<ClipboardItem>(fileName: "snippets.json", label: "snippets")
+    private let imageProcessingQueue = DispatchQueue(label: "com.clippy.imageprocessing", qos: .utility)
     private let maxItems = 200
     private var ignoreNextChange = false
     private var lastPurgeCheck: Date = .distantPast
@@ -29,14 +30,31 @@ final class ClipboardMonitor {
 
     func start() {
         purgeExpiredItems()
+        reconcileImageFiles()
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             self?.checkClipboard()
         }
     }
 
+    /// At launch: delete image files no longer referenced by any item, then
+    /// re-save so legacy inline-image migrations are recorded and any
+    /// pre-existing plaintext sensitive entries are re-encrypted at rest.
+    private func reconcileImageFiles() {
+        var referenced = Set<String>()
+        for item in items + snippets where item.contentType == .image {
+            if let name = item.imageFileName { referenced.insert(name) }
+        }
+        ImageStore.shared.pruneUnreferenced(keeping: referenced)
+
+        if !items.isEmpty { store.save(items) }
+        if !snippets.isEmpty { snippetStore.save(snippets) }
+    }
+
     func stop() {
         timer?.invalidate()
         timer = nil
+        store.saveImmediately(items)
+        snippetStore.saveImmediately(snippets)
     }
 
     func filteredItems(searchText: String) -> [ClipboardItem] {
@@ -53,16 +71,19 @@ final class ClipboardMonitor {
 
     func deleteItem(_ item: ClipboardItem) {
         items.removeAll { $0.id == item.id }
+        deleteImageFile(for: item)
         store.save(items)
     }
 
     func clearAll() {
+        deleteImageFiles(for: items)
         items.removeAll()
         store.save(items)
     }
 
     func clearItems(inLastMinutes minutes: Int) {
         let cutoff = Date().addingTimeInterval(-TimeInterval(minutes * 60))
+        deleteImageFiles(for: items.filter { $0.timestamp >= cutoff })
         items.removeAll { $0.timestamp >= cutoff }
         store.save(items)
     }
@@ -75,15 +96,24 @@ final class ClipboardMonitor {
 
     func saveAsSnippet(_ item: ClipboardItem) {
         // Avoid duplicate snippets
-        if snippets.contains(where: { $0.textContent == item.textContent && $0.imageData == item.imageData }) {
+        if snippets.contains(where: { $0.contentType == item.contentType && $0.textContent == item.textContent && $0.imageFileName == item.imageFileName }) {
             return
         }
-        snippets.insert(item, at: 0)
+        // Give image snippets their own copy of the file so purging history
+        // does not delete a file the snippet still references.
+        var toSave = item
+        if item.contentType == .image,
+           let name = item.imageFileName,
+           let copied = ImageStore.shared.copy(name) {
+            toSave = ClipboardItem.image(fileName: copied, sourceAppName: item.sourceAppName, sourceAppBundleID: item.sourceAppBundleID)
+        }
+        snippets.insert(toSave, at: 0)
         snippetStore.save(snippets)
     }
 
     func deleteSnippet(_ item: ClipboardItem) {
         snippets.removeAll { $0.id == item.id }
+        deleteImageFile(for: item)
         snippetStore.save(snippets)
     }
 
@@ -91,11 +121,11 @@ final class ClipboardMonitor {
 
     private func purgeExpiredItems() {
         let cutoff = Date().addingTimeInterval(-AppSettings.shared.retentionPeriod.timeInterval)
-        let countBefore = items.count
+        let expired = items.filter { $0.timestamp < cutoff }
+        guard !expired.isEmpty else { return }
+        deleteImageFiles(for: expired)
         items.removeAll { $0.timestamp < cutoff }
-        if items.count != countBefore {
-            store.save(items)
-        }
+        store.save(items)
     }
 
     private func checkClipboard() {
@@ -136,10 +166,17 @@ final class ClipboardMonitor {
 
         // Check for image first
         if let imageData = pasteboard.data(forType: .tiff) ?? pasteboard.data(forType: .png) {
-            if let bitmapRep = NSBitmapImageRep(data: imageData),
-               let pngData = bitmapRep.representation(using: .png, properties: [.compressionFactor: 0.8]) {
-                let item = ClipboardItem.image(pngData, sourceApp: sourceApp)
-                insertItem(item)
+            // Decode + re-encode + write the file off the main thread; the raw
+            // pasteboard bytes and source app strings are all we capture here.
+            let sourceName = sourceApp?.localizedName
+            let sourceBundle = sourceApp?.bundleIdentifier
+            imageProcessingQueue.async { [weak self] in
+                guard let pngData = Self.pngData(from: imageData) else { return }
+                let fileName = ImageStore.shared.write(pngData)
+                let item = ClipboardItem.image(fileName: fileName, sourceAppName: sourceName, sourceAppBundleID: sourceBundle)
+                DispatchQueue.main.async {
+                    self?.insertItem(item)
+                }
             }
         } else if let string = pasteboard.string(forType: .string), !string.isEmpty {
             // Avoid duplicate consecutive text
@@ -158,7 +195,7 @@ final class ClipboardMonitor {
                     id: first.id,
                     contentType: .text,
                     textContent: merged,
-                    imageData: nil,
+                    imageFileName: nil,
                     timestamp: first.timestamp,
                     sourceAppName: first.sourceAppName,
                     sourceAppBundleID: first.sourceAppBundleID
@@ -175,8 +212,28 @@ final class ClipboardMonitor {
     private func insertItem(_ item: ClipboardItem) {
         items.insert(item, at: 0)
         if items.count > maxItems {
-            items = Array(items.prefix(maxItems))
+            deleteImageFiles(for: Array(items[maxItems...]))
+            items.removeLast(items.count - maxItems)
         }
         store.save(items)
+    }
+
+    // MARK: - Image file cleanup
+
+    private func deleteImageFile(for item: ClipboardItem) {
+        if item.contentType == .image, let name = item.imageFileName {
+            ImageStore.shared.delete(name)
+        }
+    }
+
+    private func deleteImageFiles(for items: [ClipboardItem]) {
+        for item in items {
+            deleteImageFile(for: item)
+        }
+    }
+
+    private static func pngData(from raw: Data) -> Data? {
+        guard let bitmapRep = NSBitmapImageRep(data: raw) else { return nil }
+        return bitmapRep.representation(using: .png, properties: [.compressionFactor: 0.8])
     }
 }
