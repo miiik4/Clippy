@@ -33,14 +33,17 @@ No external dependencies — just Xcode 15+ and macOS 14.0 or later.
 - **Clipboard history** — automatically captures text and images (up to 200 items)
 - **Global hotkey** — press `⌥⌘V` to open the floating panel from anywhere (customizable in settings)
 - **Quick paste** — `⌘1` through `⌘9` to paste recent items, or `Return` to paste selected
+- **Click to paste** — single-click an item to select it, double-click to paste it instantly
 - **Paste as plain text** — `Shift+Return` to paste without formatting
 - **Search** — filter your history instantly by typing
 - **Snippets** — save items permanently with `⌘S`, switch with `Tab`
 - **Clipboard merging** — rapid successive copies append text instead of creating new entries
 - **App ignore list** — skip clipboard captures from password managers and banking apps
+- **Sensitive content protection** — text from password managers is masked in the panel and encrypted at rest (key stored in your Keychain), decrypted only in memory when you paste
 - **Image preview** — arrow keys to expand/collapse image previews inline
 - **Source app icons** — see which app each item was copied from
 - **Launch at login** — start Clippy automatically when you log in
+- **Automatic updates** — checks for new releases and prompts you from the menu bar when one is available
 - **Privacy** — automatically ignores concealed, transient, and auto-generated clipboard data
 
 ## Screenshots
