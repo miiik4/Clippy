@@ -208,6 +208,11 @@ final class ClipboardPanelController {
 
     // MARK: - Paste
 
+    /// Paste the item at the given index, used for click-to-paste from the list.
+    func pasteItem(at index: Int, plainText: Bool = false) {
+        pasteItemAtIndex(index, plainText: plainText)
+    }
+
     private func pasteItemAtIndex(_ index: Int, plainText: Bool = false) {
         let items = currentDisplayItems
         guard index >= 0, index < items.count else { return }

@@ -150,6 +150,18 @@ struct ClipboardListView: View {
                             isExpanded: item.id == state.expandedImageID
                         )
                         .id(item.id)
+                        .onTapGesture(count: 2) {
+                            state.selectedIndex = index
+                            panelController.pasteItem(at: index)
+                        }
+                        .simultaneousGesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { _ in
+                                    if state.selectedIndex != index {
+                                        state.selectedIndex = index
+                                    }
+                                }
+                        )
                     }
                 }
                 .padding(.vertical, 4)

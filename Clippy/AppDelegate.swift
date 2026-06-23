@@ -16,8 +16,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeyManager.register()
 
         // Re-register hotkey when settings change
-        let settings = AppSettings.shared
-        
         NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
             .debounce(for: .milliseconds(100), scheduler: RunLoop.main)
             .sink { [weak self] _ in
