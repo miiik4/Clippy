@@ -12,7 +12,13 @@ A lightweight clipboard history manager for macOS. Lives in your menu bar, store
 2. Download the `.zip` file
 3. Extract it to get the `.dmg` file
 4. Open the `.dmg` and drag **Clippy** to your Applications folder
-5. On first launch, macOS may warn about an unidentified developer — right-click the app and choose **Open** to bypass Gatekeeper
+5. The first time you open Clippy, macOS shows a dialog: **"Apple could not verify "Clippy" is free of malware that may harm your Mac or compromise your privacy."** (the app is signed but not yet notarized). To open it anyway:
+   1. Click **Done** to dismiss the dialog — do **not** click *Move to Trash*.
+   2. Open **System Settings → Privacy & Security** and scroll down to the **Security** section.
+   3. You'll see a message that **"Clippy" was blocked to protect your Mac** — click **Open Anyway** next to it.
+   4. When the prompt reappears, click **Open Anyway** again and authenticate with Touch ID or your password.
+
+   > On macOS Sequoia (15) and later, the old "right-click → Open" shortcut no longer works for non-notarized apps — you must use the Privacy & Security panel. The **Open Anyway** button only appears for about an hour after you try to launch the app, so if it's missing, double-click Clippy again first.
 
 ### Build from source
 
