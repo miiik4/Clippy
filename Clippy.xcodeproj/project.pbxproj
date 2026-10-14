@@ -6,7 +6,18 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		76A1E00A2F60000000C0FFEE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 765646882F5FF7020095EA2F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7656468F2F5FF7020095EA2F;
+			remoteInfo = Clippy;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		76A1E0012F60000000C0FFEE /* ClippyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClippyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		765646902F5FF7020095EA2F /* Clippy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clippy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -16,10 +27,22 @@
 			path = Clippy;
 			sourceTree = "<group>";
 		};
+		76A1E0022F60000000C0FFEE /* ClippyTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ClippyTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		7656468D2F5FF7020095EA2F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		76A1E0052F60000000C0FFEE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				765646922F5FF7020095EA2F /* Clippy */,
+				76A1E0022F60000000C0FFEE /* ClippyTests */,
 				765646912F5FF7020095EA2F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				765646902F5FF7020095EA2F /* Clippy.app */,
+				76A1E0012F60000000C0FFEE /* ClippyTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -70,6 +95,29 @@
 			productReference = 765646902F5FF7020095EA2F /* Clippy.app */;
 			productType = "com.apple.product-type.application";
 		};
+		76A1E0032F60000000C0FFEE /* ClippyTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 76A1E0072F60000000C0FFEE /* Build configuration list for PBXNativeTarget "ClippyTests" */;
+			buildPhases = (
+				76A1E0042F60000000C0FFEE /* Sources */,
+				76A1E0052F60000000C0FFEE /* Frameworks */,
+				76A1E0062F60000000C0FFEE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				76A1E00B2F60000000C0FFEE /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				76A1E0022F60000000C0FFEE /* ClippyTests */,
+			);
+			name = ClippyTests;
+			packageProductDependencies = (
+			);
+			productName = ClippyTests;
+			productReference = 76A1E0012F60000000C0FFEE /* ClippyTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -82,6 +130,10 @@
 				TargetAttributes = {
 					7656468F2F5FF7020095EA2F = {
 						CreatedOnToolsVersion = 26.0.1;
+					};
+					76A1E0032F60000000C0FFEE = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = 7656468F2F5FF7020095EA2F;
 					};
 				};
 			};
@@ -100,12 +152,20 @@
 			projectRoot = "";
 			targets = (
 				7656468F2F5FF7020095EA2F /* Clippy */,
+				76A1E0032F60000000C0FFEE /* ClippyTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		7656468E2F5FF7020095EA2F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		76A1E0062F60000000C0FFEE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +182,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		76A1E0042F60000000C0FFEE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		76A1E00B2F60000000C0FFEE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7656468F2F5FF7020095EA2F /* Clippy */;
+			targetProxy = 76A1E00A2F60000000C0FFEE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		765646992F5FF7020095EA2F /* Debug */ = {
@@ -313,6 +388,50 @@
 			};
 			name = Release;
 		};
+		76A1E0082F60000000C0FFEE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GG6H658452;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Holmberg-Labs.ClippyTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Clippy.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Clippy";
+			};
+			name = Debug;
+		};
+		76A1E0092F60000000C0FFEE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GG6H658452;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Holmberg-Labs.ClippyTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Clippy.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Clippy";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -330,6 +449,15 @@
 			buildConfigurations = (
 				7656469C2F5FF7020095EA2F /* Debug */,
 				7656469D2F5FF7020095EA2F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		76A1E0072F60000000C0FFEE /* Build configuration list for PBXNativeTarget "ClippyTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				76A1E0082F60000000C0FFEE /* Debug */,
+				76A1E0092F60000000C0FFEE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

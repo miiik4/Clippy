@@ -32,21 +32,24 @@ If you want to verify the code or make your own changes:
 3. Select the **Clippy** scheme and your Mac as the run destination
 4. Build and run with `⌘R` (or `⌘B` to build only)
 
-No external dependencies — just Xcode 15+ and macOS 14.0 or later.
+No external dependencies — just Xcode 26+ and macOS 26 or later. Run the unit tests with `⌘U`.
 
 ## Features
 
-- **Clipboard history** — automatically captures text and images (up to 200 items)
+- **Clipboard history** — automatically captures text (with formatting), images and files copied in Finder (200 items by default, configurable up to 1000)
+- **No duplicates** — copying or pasting something already in your history moves it to the top
 - **Global hotkey** — press `⌥⌘V` to open the floating panel from anywhere (customizable in settings)
 - **Quick paste** — `⌘1` through `⌘9` to paste recent items, or `Return` to paste selected
 - **Click to paste** — single-click an item to select it, double-click to paste it instantly
 - **Paste as plain text** — `Shift+Return` to paste without formatting
-- **Search** — filter your history instantly by typing
-- **Snippets** — save items permanently with `⌘S`, switch with `Tab`
+- **Search** — filter your history instantly by typing; narrow it with `app:Safari` or `type:text|image|file|link|color|pinned`
+- **Pinned items** — `⌘P` keeps an item at the top of History, exempt from clearing, expiry and the item limit
+- **Snippets** — save items permanently with `⌘S`, switch with `Tab`; name and edit them with `⌘E`, reorder with `⌘⌥↑/↓`, and import/export them in Settings
 - **Clipboard merging** — rapid successive copies append text instead of creating new entries
 - **App ignore list** — skip clipboard captures from password managers and banking apps
 - **Sensitive content protection** — text from password managers is masked in the panel and encrypted at rest (key stored in your Keychain), decrypted only in memory when you paste
-- **Image preview** — arrow keys to expand/collapse image previews inline
+- **Previews** — `→`/`←` expands and collapses images and long text inline; links and hex colors are recognised in the list
+- **Pause recording** — pause from the menu bar for the next copy, 5 minutes, an hour, or until resumed
 - **Source app icons** — see which app each item was copied from
 - **Launch at login** — start Clippy automatically when you log in
 - **Automatic updates** — checks for new releases and prompts you from the menu bar when one is available
@@ -67,12 +70,15 @@ No external dependencies — just Xcode 15+ and macOS 14.0 or later.
 | Paste selected | `Return` |
 | Paste as plain text | `Shift+Return` |
 | Save/unsave snippet | `⌘S` |
+| Pin/unpin item | `⌘P` |
+| Edit snippet | `⌘E` (save with `⌘Return`) |
+| Reorder snippet | `⌘⌥↑` / `⌘⌥↓` |
 | Switch History/Snippets | `Tab` |
-| Preview image | `→` / `←` |
+| Preview | `→` / `←` |
 | Delete item | `fn+Delete` |
 | Dismiss | `Escape` |
 
 ## Requirements
 
-- macOS 14.0 or later
-- Xcode 15+ (if building from source)
+- macOS 26 or later
+- Xcode 26+ (if building from source)

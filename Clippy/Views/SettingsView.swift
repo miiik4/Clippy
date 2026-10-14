@@ -1,6 +1,7 @@
 import SwiftUI
 import ServiceManagement
 import Carbon.HIToolbox
+import UniformTypeIdentifiers
 
 struct HotkeyRecorder: NSViewRepresentable {
     @Binding var keyCode: Int
@@ -19,8 +20,10 @@ struct HotkeyRecorder: NSViewRepresentable {
                 return
             }
             
-            // Only allow if at least one modifier is pressed
-            let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            // Require ⌘, ⌥ or ⌃. Shift alone, Caps Lock, fn and the numeric-pad
+            // flag (set on arrow keys) would otherwise let a bare key through
+            // and swallow it system-wide.
+            let mods = event.modifierFlags.intersection([.command, .option, .control])
             if mods.isEmpty { return }
 
             parent.keyCode = Int(event.keyCode)
@@ -117,10 +120,12 @@ struct InstalledApp: Identifiable, Comparable, Sendable {
 }
 
 struct SettingsView: View {
+    let monitor: ClipboardMonitor
     @Bindable private var settings = AppSettings.shared
     @State private var launchAtLogin = false
     @State private var installedApps: [InstalledApp] = []
     @State private var selectedAppID = ""
+    @State private var snippetTransferMessage: String?
 
     private var availableApps: [InstalledApp] {
         installedApps.filter { !settings.ignoredAppBundleIDs.contains($0.id) }
@@ -138,7 +143,7 @@ struct SettingsView: View {
                     Label("Ignored Apps", systemImage: "shield.lefthalf.filled")
                 }
         }
-        .frame(width: 440, height: 420)
+        .frame(width: 460, height: 520)
         .task {
             installedApps = await Task.detached { InstalledApp.loadAll() }.value
         }
@@ -170,6 +175,25 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.radioGroup)
+
+                Picker("Maximum history items", selection: $settings.maxHistoryItems) {
+                    ForEach(AppSettings.historyLimitOptions, id: \.self) { limit in
+                        Text("\(limit)").tag(limit)
+                    }
+                }
+                Text("Pinned items (\u{2318}P) are kept regardless of age or this limit.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Snippets") {
+                HStack {
+                    Button("Export Snippets\u{2026}") { exportSnippets() }
+                    Button("Import Snippets\u{2026}") { importSnippets() }
+                }
+                Text(snippetTransferMessage ?? "Exports text snippets and their names as JSON. Image snippets are not exported.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Global Hotkey") {
@@ -219,7 +243,7 @@ struct SettingsView: View {
             }
 
             Section("Privacy") {
-                Text("Clippy automatically ignores concealed data (e.g. password fields) and transient content marked by apps.")
+                Text("Clippy automatically ignores concealed data (e.g. password fields) and transient content marked by apps. Recording can be paused from the menu bar.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -231,12 +255,20 @@ struct SettingsView: View {
                     shortcutRow("Paste selected", shortcut: "\u{21A9}")
                     shortcutRow("Paste as plain text", shortcut: "\u{21E7}\u{21A9}")
                     shortcutRow("Save as snippet", shortcut: "\u{2318}S")
-                    shortcutRow("Preview image", shortcut: "\u{2192} / \u{2190}")
+                    shortcutRow("Pin / unpin", shortcut: "\u{2318}P")
+                    shortcutRow("Edit snippet", shortcut: "\u{2318}E")
+                    shortcutRow("Reorder snippet", shortcut: "\u{2318}\u{2325}\u{2191} / \u{2193}")
+                    shortcutRow("Preview", shortcut: "\u{2192} / \u{2190}")
                     shortcutRow("Switch tab", shortcut: "Tab")
                     shortcutRow("Delete item", shortcut: "fn \u{232B}")
                     shortcutRow("Dismiss", shortcut: "\u{238B}")
+                    shortcutRow("Filter by app", shortcut: "app:Safari")
+                    shortcutRow("Filter by type", shortcut: "type:link")
                 }
                 .font(.caption)
+                Text("Types: text, image, file, link, color, pinned")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
@@ -321,6 +353,34 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    // MARK: - Snippet import / export
+
+    private func exportSnippets() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "Clippy Snippets.json"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try monitor.exportSnippets().write(to: url, options: .atomic)
+            snippetTransferMessage = "Exported snippets to \(url.lastPathComponent)."
+        } catch {
+            snippetTransferMessage = "Export failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func importSnippets() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let added = try monitor.importSnippets(from: Data(contentsOf: url))
+            snippetTransferMessage = added == 1 ? "Imported 1 snippet." : "Imported \(added) snippets."
+        } catch {
+            snippetTransferMessage = "Import failed: this file is not a Clippy snippet export."
+        }
     }
 
     // MARK: - Helpers

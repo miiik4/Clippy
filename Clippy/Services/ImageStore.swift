@@ -1,8 +1,9 @@
 import Foundation
+import CryptoKit
 
 /// Stores clipboard image bytes as individual files on disk, keyed by filename,
 /// so the history/snippet JSON stays small and text-only.
-final class ImageStore {
+nonisolated final class ImageStore: @unchecked Sendable {
     static let shared = ImageStore()
 
     private let directory: URL
@@ -22,13 +23,23 @@ final class ImageStore {
         try? Data(contentsOf: url(for: fileName))
     }
 
-    /// Writes image bytes to a new file and returns its name. Synchronous —
-    /// call from a background queue when on a hot path.
+    /// Writes image bytes to a new file and returns its name, or nil if the
+    /// write failed. Synchronous — call from a background queue when on a
+    /// hot path.
     @discardableResult
-    func write(_ data: Data) -> String {
+    func write(_ data: Data) -> String? {
         let name = UUID().uuidString + ".png"
-        try? data.write(to: url(for: name), options: .atomic)
-        return name
+        do {
+            try data.write(to: url(for: name), options: .atomic)
+            return name
+        } catch {
+            return nil
+        }
+    }
+
+    /// Hex SHA-256 of image bytes, used to recognise re-copies of an image.
+    static func hash(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     /// Duplicates an existing image file so the copy can be owned independently.

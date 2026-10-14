@@ -6,11 +6,10 @@ struct ClipboardListView: View {
     var panelController: ClipboardPanelController
     @FocusState private var isSearchFocused: Bool
 
-    private var displayItems: [ClipboardItem] {
-        panelController.currentDisplayItems
-    }
-
     var body: some View {
+        // Filter once per render and hand the result to the subviews.
+        let displayItems = panelController.currentDisplayItems
+
         VStack(spacing: 0) {
             // Search bar + tabs
             HStack(spacing: 8) {
@@ -31,6 +30,10 @@ struct ClipboardListView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
 
+            if !state.isAccessibilityGranted {
+                accessibilityBanner
+            }
+
             Divider()
                 .padding(.horizontal, 8)
 
@@ -39,31 +42,18 @@ struct ClipboardListView: View {
                 if displayItems.isEmpty {
                     emptyStateView
                 } else {
-                    itemListView
+                    itemListView(displayItems)
                 }
 
-                // Snippet saved flash
-                if state.snippetSavedFlash {
-                    VStack {
-                        Spacer()
-                        HStack(spacing: 6) {
-                            Image(systemName: "bookmark.fill")
-                            Text("Saved to Snippets")
-                        }
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(
-                            Capsule()
-                                .fill(.green.opacity(0.85))
-                        )
-                        .padding(.bottom, 12)
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .animation(.easeInOut(duration: 0.2), value: state.snippetSavedFlash)
+                if let flash = state.flash {
+                    flashView(flash)
+                }
+
+                if state.editingSnippet != nil {
+                    SnippetEditorView(state: state, panelController: panelController)
                 }
             }
+            .animation(.easeInOut(duration: 0.2), value: state.flash)
 
             // Footer
             if let selectedItem = displayItems[safe: state.selectedIndex] {
@@ -74,6 +64,7 @@ struct ClipboardListView: View {
         }
         .onChange(of: state.searchText) { _, _ in
             state.selectedIndex = 0
+            state.expandedItemID = nil
         }
         .onChange(of: state.showCount) { _, _ in
             isSearchFocused = true
@@ -90,6 +81,7 @@ struct ClipboardListView: View {
             state.activeTab = tab
             state.selectedIndex = 0
             state.searchText = ""
+            state.expandedItemID = nil
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: icon)
@@ -109,6 +101,44 @@ struct ClipboardListView: View {
     }
 
     // MARK: - Subviews
+
+    private var accessibilityBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text("Clippy needs Accessibility access to paste. Items are copied to the clipboard until then.")
+                .font(.system(size: 11))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer()
+            Button("Open Settings") {
+                panelController.openAccessibilitySettings()
+            }
+            .controlSize(.small)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color.orange.opacity(0.1))
+    }
+
+    private func flashView(_ flash: PanelFlash) -> some View {
+        VStack {
+            Spacer()
+            HStack(spacing: 6) {
+                Image(systemName: flash.systemImage)
+                Text(flash.message)
+            }
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill((flash.isWarning ? Color.orange : Color.green).opacity(0.85))
+            )
+            .padding(.bottom, 12)
+        }
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
 
     private var emptyStateView: some View {
         VStack(spacing: 8) {
@@ -131,13 +161,18 @@ struct ClipboardListView: View {
                 Text(state.searchText.isEmpty ? "No clipboard history yet" : "No matching items")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
+                if !state.searchText.isEmpty {
+                    Text("Filters: app:Safari  type:text, image, file, link, color, pinned")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(40)
     }
 
-    private var itemListView: some View {
+    private func itemListView(_ displayItems: [ClipboardItem]) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 1) {
@@ -147,7 +182,7 @@ struct ClipboardListView: View {
                             index: index,
                             isSelected: index == state.selectedIndex,
                             isSnippet: state.activeTab == .snippets,
-                            isExpanded: item.id == state.expandedImageID
+                            isExpanded: item.id == state.expandedItemID
                         )
                         .id(item.id)
                         .onTapGesture(count: 2) {
@@ -180,10 +215,19 @@ struct ClipboardListView: View {
         HStack {
             if item.isSensitive {
                 Text("Sensitive content")
-            } else if item.contentType == .text {
-                Text("\(item.wordCount) words \u{00B7} \(item.charCount) chars")
             } else {
-                Text("Image")
+                switch item.contentType {
+                case .text:
+                    Text("\(item.wordCount) words \u{00B7} \(item.charCount) chars")
+                    if item.hasRichText {
+                        Text("\u{00B7} Formatted (\u{21E7}\u{21A9} plain)")
+                    }
+                case .image:
+                    Text("Image")
+                case .file:
+                    let count = item.fileURLs?.count ?? 0
+                    Text(count == 1 ? "1 file" : "\(count) files")
+                }
             }
             if let appName = item.sourceAppName {
                 Text("\u{00B7} \(appName)")
@@ -192,13 +236,58 @@ struct ClipboardListView: View {
             if state.activeTab == .history {
                 Text("Copied \(item.relativeTimeString)")
             } else {
-                Text("\u{2318}S to save \u{00B7} Tab to switch")
+                Text("\u{2318}E edit \u{00B7} \u{2318}\u{2325}\u{2191}\u{2193} reorder")
             }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
+    }
+}
+
+// MARK: - Snippet Editor
+
+private struct SnippetEditorView: View {
+    @Bindable var state: ClipboardPanelState
+    var panelController: ClipboardPanelController
+    @FocusState private var isTitleFocused: Bool
+
+    private var isText: Bool { state.editingSnippet?.contentType == .text }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Edit Snippet")
+                .font(.headline)
+
+            TextField("Name (optional)", text: $state.editTitle)
+                .textFieldStyle(.roundedBorder)
+                .focused($isTitleFocused)
+
+            if isText {
+                TextEditor(text: $state.editText)
+                    .font(.system(size: 12, design: .monospaced))
+                    .scrollContentBackground(.hidden)
+                    .padding(4)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .textBackgroundColor)))
+            } else {
+                Spacer()
+            }
+
+            HStack {
+                Text("\u{2318}\u{21A9} save \u{00B7} \u{238B} cancel")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Cancel") { panelController.cancelEditing() }
+                Button("Save") { panelController.commitEditing() }
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(.regularMaterial)
+        .onAppear { isTitleFocused = true }
     }
 }
 

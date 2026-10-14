@@ -2,13 +2,17 @@ import AppKit
 import Combine
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let clipboardMonitor = ClipboardMonitor()
+    let clipboardMonitor = ClipboardMonitor()
     private let hotkeyManager = HotkeyManager()
     private var panelController: ClipboardPanelController?
     private var cancellables = Set<AnyCancellable>()
     private var updateTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // When hosting unit tests, don't record the clipboard, register the
+        // hotkey or touch the user's saved history.
+        if Self.isRunningTests { return }
+
         panelController = ClipboardPanelController(clipboardMonitor: clipboardMonitor)
 
         hotkeyManager.onHotkey = { [weak self] in
@@ -38,7 +42,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private static var isRunningTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
+        if Self.isRunningTests { return }
         clipboardMonitor.stop()
         hotkeyManager.unregister()
         updateTimer?.invalidate()
@@ -65,5 +75,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func clearHistory() {
         clipboardMonitor.clearAll()
+    }
+
+    func pauseRecording(for duration: TimeInterval?) {
+        clipboardMonitor.pause(for: duration)
+    }
+
+    func skipNextCopy() {
+        clipboardMonitor.skipNextCopy()
+    }
+
+    func resumeRecording() {
+        clipboardMonitor.resume()
     }
 }

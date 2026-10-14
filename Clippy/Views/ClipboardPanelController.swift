@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import SwiftUI
 import Observation
 
@@ -7,14 +8,26 @@ enum PanelTab: Int {
     case snippets
 }
 
+struct PanelFlash: Equatable {
+    let message: String
+    let systemImage: String
+    var isWarning = false
+}
+
 @Observable
 final class ClipboardPanelState {
     var searchText = ""
     var selectedIndex = 0
     var showCount = 0
     var activeTab: PanelTab = .history
-    var snippetSavedFlash = false
-    var expandedImageID: UUID?
+    var flash: PanelFlash?
+    var expandedItemID: UUID?
+    var isAccessibilityGranted = true
+
+    /// Snippet being edited, with the draft values.
+    var editingSnippet: ClipboardItem?
+    var editTitle = ""
+    var editText = ""
 }
 
 final class ClipboardPanelController {
@@ -24,6 +37,7 @@ final class ClipboardPanelController {
     private var panel: FloatingPanel?
     private var localKeyMonitor: Any?
     private var globalClickMonitor: Any?
+    private var flashWorkItem: DispatchWorkItem?
 
     var isVisible: Bool { panel?.isVisible ?? false }
 
@@ -47,12 +61,15 @@ final class ClipboardPanelController {
         state.searchText = ""
         state.selectedIndex = 0
         state.activeTab = .history
-        state.snippetSavedFlash = false
-        state.expandedImageID = nil
+        state.flash = nil
+        state.expandedItemID = nil
+        state.editingSnippet = nil
+        state.isAccessibilityGranted = PasteService.isAccessibilityGranted
         state.showCount += 1
 
-        // Center on screen
-        if let screen = NSScreen.main {
+        // Center on the screen the mouse is on
+        let mouse = NSEvent.mouseLocation
+        if let screen = NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) }) ?? NSScreen.main {
             let screenFrame = screen.visibleFrame
             let panelSize = panel.frame.size
             let x = screenFrame.midX - panelSize.width / 2
@@ -89,121 +106,184 @@ final class ClipboardPanelController {
         }
     }
 
+    func openAccessibilitySettings() {
+        hide()
+        PasteService.openAccessibilitySettings()
+    }
+
     // MARK: - Key Event Handling
 
     private func handleKeyEvent(_ event: NSEvent) -> Bool {
-        switch Int(event.keyCode) {
-        case 53: // Escape
+        let keyCode = Int(event.keyCode)
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+
+        // While the snippet editor is open, only Escape and ⌘Return are ours.
+        if state.editingSnippet != nil {
+            switch keyCode {
+            case kVK_Escape:
+                cancelEditing()
+                return true
+            case kVK_Return where flags.contains(.command):
+                commitEditing()
+                return true
+            default:
+                return false
+            }
+        }
+
+        switch keyCode {
+        case kVK_Escape:
             hide()
             return true
 
-        case 126: // Up arrow
-            if state.selectedIndex > 0 {
-                state.selectedIndex -= 1
-                state.expandedImageID = nil
+        case kVK_UpArrow, kVK_DownArrow:
+            let delta = keyCode == kVK_UpArrow ? -1 : 1
+            if state.activeTab == .snippets, flags.contains([.command, .option]) {
+                moveSelectedSnippet(by: delta)
+            } else {
+                let newIndex = state.selectedIndex + delta
+                if newIndex >= 0, newIndex < currentDisplayItems.count {
+                    state.selectedIndex = newIndex
+                    state.expandedItemID = nil
+                }
             }
             return true
 
-        case 125: // Down arrow
-            let items = currentDisplayItems
-            if state.selectedIndex < items.count - 1 {
-                state.selectedIndex += 1
-                state.expandedImageID = nil
-            }
+        case kVK_RightArrow: // Expand preview
+            guard let item = currentDisplayItems[safe: state.selectedIndex],
+                  item.isExpandable, state.expandedItemID != item.id else { return false }
+            state.expandedItemID = item.id
             return true
 
-        case 124: // Right arrow — expand image preview
-            if let item = currentDisplayItems[safe: state.selectedIndex],
-               item.contentType == .image {
-                state.expandedImageID = item.id
-            }
+        case kVK_LeftArrow: // Collapse preview
+            guard state.expandedItemID != nil else { return false }
+            state.expandedItemID = nil
             return true
 
-        case 123: // Left arrow — collapse image preview
-            state.expandedImageID = nil
+        case kVK_Return:
+            pasteItemAtIndex(state.selectedIndex, plainText: flags.contains(.shift))
             return true
 
-        case 36: // Return
-            let plain = event.modifierFlags.contains(.shift)
-            pasteItemAtIndex(state.selectedIndex, plainText: plain)
-            return true
-
-        case 117: // Forward Delete (fn+Backspace)
+        case kVK_ForwardDelete: // fn+Backspace
             deleteSelectedItem()
+            return true
+
+        case kVK_Tab:
+            state.activeTab = state.activeTab == .history ? .snippets : .history
+            state.selectedIndex = 0
+            state.searchText = ""
+            state.expandedItemID = nil
             return true
 
         default:
             break
         }
 
-        // ⌘1 through ⌘9
-        if event.modifierFlags.contains(.command) {
-            if let chars = event.charactersIgnoringModifiers {
-                if let digit = Int(chars), digit >= 1, digit <= 9 {
-                    pasteItemAtIndex(digit - 1)
-                    return true
-                }
-
-                // ⌘S — save/unsave snippet
-                if chars == "s" {
-                    toggleSnippet()
-                    return true
-                }
-            }
+        guard flags.contains(.command), let chars = event.charactersIgnoringModifiers?.lowercased() else {
+            return false
         }
 
-        // Tab key — switch between History and Snippets
-        if Int(event.keyCode) == 48 { // Tab
-            state.activeTab = state.activeTab == .history ? .snippets : .history
-            state.selectedIndex = 0
-            state.searchText = ""
+        // ⌘1 through ⌘9
+        if let digit = Int(chars), digit >= 1, digit <= 9 {
+            pasteItemAtIndex(digit - 1)
             return true
         }
 
-        return false
+        switch chars {
+        case "s": // Save/unsave snippet
+            toggleSnippet()
+            return true
+        case "p" where state.activeTab == .history: // Pin/unpin
+            togglePin()
+            return true
+        case "e" where state.activeTab == .snippets: // Edit snippet
+            beginEditing()
+            return true
+        default:
+            return false
+        }
     }
 
     // MARK: - Delete
 
     private func deleteSelectedItem() {
-        let items = currentDisplayItems
-        guard state.selectedIndex >= 0, state.selectedIndex < items.count else { return }
-        let item = items[state.selectedIndex]
+        guard let item = currentDisplayItems[safe: state.selectedIndex] else { return }
 
         if state.activeTab == .snippets {
             clipboardMonitor.deleteSnippet(item)
         } else {
             clipboardMonitor.deleteItem(item)
         }
+        clampSelection()
+    }
 
-        // Clamp selection to new list bounds
-        let updatedItems = currentDisplayItems
-        if state.selectedIndex >= updatedItems.count {
-            state.selectedIndex = max(0, updatedItems.count - 1)
+    private func clampSelection() {
+        let count = currentDisplayItems.count
+        if state.selectedIndex >= count {
+            state.selectedIndex = max(0, count - 1)
         }
     }
 
-    // MARK: - Save as Snippet
+    // MARK: - Snippets & pins
 
     private func toggleSnippet() {
-        let items = currentDisplayItems
-        guard state.selectedIndex >= 0, state.selectedIndex < items.count else { return }
-        let item = items[state.selectedIndex]
+        guard let item = currentDisplayItems[safe: state.selectedIndex] else { return }
 
         if state.activeTab == .snippets {
             clipboardMonitor.deleteSnippet(item)
-            let updatedItems = currentDisplayItems
-            if state.selectedIndex >= updatedItems.count {
-                state.selectedIndex = max(0, updatedItems.count - 1)
-            }
-            state.snippetSavedFlash = false
+            clampSelection()
+            showFlash(PanelFlash(message: "Removed from Snippets", systemImage: "bookmark.slash"))
+        } else if clipboardMonitor.saveAsSnippet(item) {
+            showFlash(PanelFlash(message: "Saved to Snippets", systemImage: "bookmark.fill"))
         } else {
-            clipboardMonitor.saveAsSnippet(item)
-            state.snippetSavedFlash = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.state.snippetSavedFlash = false
-            }
+            showFlash(PanelFlash(message: "Already in Snippets", systemImage: "bookmark", isWarning: true))
         }
+    }
+
+    private func togglePin() {
+        guard let item = currentDisplayItems[safe: state.selectedIndex] else { return }
+        clipboardMonitor.togglePin(item)
+        // Keep the same item selected after it moves in or out of the pinned group.
+        if let newIndex = currentDisplayItems.firstIndex(where: { $0.id == item.id }) {
+            state.selectedIndex = newIndex
+        }
+        showFlash(PanelFlash(message: item.isPinned ? "Unpinned" : "Pinned", systemImage: item.isPinned ? "pin.slash" : "pin.fill"))
+    }
+
+    private func moveSelectedSnippet(by offset: Int) {
+        // Reordering a filtered list would be ambiguous.
+        guard state.searchText.isEmpty,
+              let item = currentDisplayItems[safe: state.selectedIndex],
+              let newIndex = clipboardMonitor.moveSnippet(item, by: offset) else { return }
+        state.selectedIndex = newIndex
+    }
+
+    func beginEditing() {
+        guard state.activeTab == .snippets,
+              let item = currentDisplayItems[safe: state.selectedIndex] else { return }
+        state.editTitle = item.title ?? ""
+        state.editText = item.textContent ?? ""
+        state.editingSnippet = item
+    }
+
+    func commitEditing() {
+        guard let item = state.editingSnippet else { return }
+        clipboardMonitor.updateSnippet(item, title: state.editTitle, text: item.contentType == .text ? state.editText : nil)
+        state.editingSnippet = nil
+        state.showCount += 1 // refocus search
+    }
+
+    func cancelEditing() {
+        state.editingSnippet = nil
+        state.showCount += 1
+    }
+
+    private func showFlash(_ flash: PanelFlash) {
+        flashWorkItem?.cancel()
+        state.flash = flash
+        let work = DispatchWorkItem { [weak self] in self?.state.flash = nil }
+        flashWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: work)
     }
 
     // MARK: - Paste
@@ -214,44 +294,25 @@ final class ClipboardPanelController {
     }
 
     private func pasteItemAtIndex(_ index: Int, plainText: Bool = false) {
-        let items = currentDisplayItems
-        guard index >= 0, index < items.count else { return }
-        let item = items[index]
+        guard let item = currentDisplayItems[safe: index] else { return }
 
         clipboardMonitor.setIgnoreNextChange()
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-
-        switch item.contentType {
-        case .text:
-            if let text = item.textContent {
-                pasteboard.setString(text, forType: .string)
-            }
-        case .image:
-            if let fileName = item.imageFileName,
-               let data = ImageStore.shared.data(for: fileName),
-               let image = NSImage(data: data) {
-                pasteboard.writeObjects([image])
-            }
+        PasteService.write(item, plainText: plainText)
+        if state.activeTab == .history {
+            clipboardMonitor.markUsed(item)
         }
 
         hide()
-        if plainText {
-            PasteService.pastePlain()
-        } else {
-            PasteService.paste()
-        }
+        PasteService.paste()
     }
 
     var currentDisplayItems: [ClipboardItem] {
+        let query = SearchQuery(state.searchText)
         switch state.activeTab {
         case .history:
-            return clipboardMonitor.filteredItems(searchText: state.searchText)
+            return clipboardMonitor.filteredItems(query)
         case .snippets:
-            guard !state.searchText.isEmpty else { return clipboardMonitor.snippets }
-            return clipboardMonitor.snippets.filter { item in
-                item.textContent?.localizedCaseInsensitiveContains(state.searchText) ?? false
-            }
+            return clipboardMonitor.filteredSnippets(query)
         }
     }
 
@@ -285,5 +346,20 @@ final class ClipboardPanelController {
 
         panel.contentView = visualEffect
         self.panel = panel
+    }
+}
+
+extension ClipboardItem {
+    /// Whether → shows a larger preview: images, and text too long for the row.
+    var isExpandable: Bool {
+        switch contentType {
+        case .image:
+            return true
+        case .text:
+            guard !isSensitive, let text = textContent else { return false }
+            return text.count > 120 || text.contains("\n")
+        case .file:
+            return (fileURLs?.count ?? 0) > 1
+        }
     }
 }

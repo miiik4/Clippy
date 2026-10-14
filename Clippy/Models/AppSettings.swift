@@ -59,6 +59,15 @@ final class AppSettings {
         }
     }
 
+    /// Maximum number of unpinned history entries kept.
+    var maxHistoryItems: Int {
+        didSet {
+            UserDefaults.standard.set(maxHistoryItems, forKey: "maxHistoryItems")
+        }
+    }
+
+    static let historyLimitOptions = [50, 100, 200, 500, 1000]
+
     var hotkeyCode: Int {
         didSet {
             UserDefaults.standard.set(hotkeyCode, forKey: "hotkeyCode")
@@ -84,16 +93,8 @@ final class AppSettings {
         ("Dashlane", "com.dashlane.Dashlane"),
     ]
 
-    static let sensitiveAppBundleIDs: Set<String> = [
-        "com.apple.Passwords",
-        "com.1password.1password",
-        "com.agilebits.onepassword7",
-        "com.bitwarden.desktop",
-        "org.keepassxc.keepassxc",
-        "com.lastpass.LastPass",
-        "com.apple.keychainaccess",
-        "com.dashlane.Dashlane",
-    ]
+    /// Text copied from these apps is masked in the UI and encrypted at rest.
+    static let sensitiveAppBundleIDs = Set(commonIgnoredApps.map(\.bundleID))
 
     private init() {
         let stored = UserDefaults.standard.integer(forKey: "retentionPeriod")
@@ -104,6 +105,9 @@ final class AppSettings {
 
         isMergeEnabled = UserDefaults.standard.object(forKey: "isMergeEnabled") as? Bool ?? true
         mergeWindowSeconds = UserDefaults.standard.object(forKey: "mergeWindowSeconds") as? Double ?? 1.0
+
+        let storedLimit = UserDefaults.standard.integer(forKey: "maxHistoryItems")
+        maxHistoryItems = storedLimit > 0 ? storedLimit : 200
 
         let storedKeyCode = UserDefaults.standard.object(forKey: "hotkeyCode") as? Int
         hotkeyCode = storedKeyCode ?? kVK_ANSI_V
