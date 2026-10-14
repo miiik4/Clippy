@@ -242,6 +242,13 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Updates") {
+                Toggle("Notify me when an update is available", isOn: $settings.notifyAboutUpdates)
+                Text("You're running Clippy \(UpdateChecker.shared.currentVersion). New versions also appear in the menu bar menu.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Privacy") {
                 Text("Clippy automatically ignores concealed data (e.g. password fields) and transient content marked by apps. Recording can be paused from the menu bar.")
                     .font(.caption)

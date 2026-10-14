@@ -54,6 +54,9 @@ final class UpdateChecker {
 
             Task { @MainActor in
                 self.availableUpdate = update
+                if let update {
+                    UpdateNotifier.shared.notifyIfNeeded(update)
+                }
             }
         }.resume()
     }

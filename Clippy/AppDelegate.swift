@@ -34,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         PasteService.requestAccessibilityPermission()
 
         // Check for app updates on launch, then every 6 hours.
+        UpdateNotifier.shared.start()
         UpdateChecker.shared.checkForUpdates()
         updateTimer = Timer.scheduledTimer(withTimeInterval: 6 * 60 * 60, repeats: true) { _ in
             Task { @MainActor in

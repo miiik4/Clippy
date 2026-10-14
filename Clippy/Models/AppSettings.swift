@@ -47,6 +47,13 @@ final class AppSettings {
         }
     }
 
+    /// Post a macOS notification when a new version is released.
+    var notifyAboutUpdates: Bool {
+        didSet {
+            UserDefaults.standard.set(notifyAboutUpdates, forKey: "notifyAboutUpdates")
+        }
+    }
+
     var isMergeEnabled: Bool {
         didSet {
             UserDefaults.standard.set(isMergeEnabled, forKey: "isMergeEnabled")
@@ -102,6 +109,8 @@ final class AppSettings {
 
         let storedIDs = UserDefaults.standard.stringArray(forKey: "ignoredAppBundleIDs") ?? []
         ignoredAppBundleIDs = Set(storedIDs)
+
+        notifyAboutUpdates = UserDefaults.standard.object(forKey: "notifyAboutUpdates") as? Bool ?? true
 
         isMergeEnabled = UserDefaults.standard.object(forKey: "isMergeEnabled") as? Bool ?? true
         mergeWindowSeconds = UserDefaults.standard.object(forKey: "mergeWindowSeconds") as? Double ?? 1.0
